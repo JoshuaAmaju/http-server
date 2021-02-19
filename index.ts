@@ -4,20 +4,22 @@ import http from "http";
 import combineRoutes from "./combineRoutes";
 import createServer from "./createServer";
 import httpListener from "./httpListener";
-import Route from "./Route";
+import Router from "./Router";
 
-const users = Route({
+const users = Router({
   routes: {
     "/": {
       on: {
         GET: {
-          effect: () => {
+          effect: (_, res) => {
             console.log("here");
+
+            res.json({ data: "Effect works" });
           },
         },
       },
     },
-    "/{id}": {
+    "/:id": {
       on: {
         POST: {
           effect: () => {},
@@ -53,6 +55,7 @@ const resources = combineRoutes("/resources", {
 });
 
 const listener = httpListener({
+  // @ts-ignore
   routes: resources,
   actions: {
     logger: () => {

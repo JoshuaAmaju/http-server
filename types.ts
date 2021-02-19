@@ -1,12 +1,4 @@
-import { IncomingMessage, ServerResponse } from "http";
-import { UrlWithParsedQuery } from "node:url";
-
-export type Request = IncomingMessage & {
-  params: Record<string, unknown>;
-  query: UrlWithParsedQuery["query"];
-};
-
-export type Response = ServerResponse;
+import { Request, Response } from "express";
 
 export type Action = (
   request: Request,
