@@ -1,8 +1,9 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 
 export type Action = (
   request: Request,
   response: Response,
+  next: NextFunction,
   ctx?: { data: unknown; error: unknown }
 ) => Promise<void> | void;
 

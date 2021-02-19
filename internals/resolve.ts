@@ -9,6 +9,8 @@ const isString = (x: unknown): x is string => {
 const getActions = (extraConfig: ExtraConfig) => (
   action: PartialBlock["entry"] | ServiceAction
 ): (Action | ServiceAction)[] => {
+  console.log("extra", extraConfig, action);
+
   if (typeof action === "string") {
     return [extraConfig.actions[action]];
   }
@@ -19,7 +21,7 @@ const getActions = (extraConfig: ExtraConfig) => (
 
   if (Array.isArray(action)) {
     // @ts-ignore
-    return [].concat(action.map(getActions)).flat();
+    return [].concat(action.map(getActions(extraConfig))).flat();
   }
 
   return [];
@@ -29,6 +31,8 @@ export const resolve = ({ exit, entry, routes, services }: Partial<Config>) => (
   extraConfig: ExtraConfig
 ) => {
   const actionGetter = getActions(extraConfig);
+
+  console.log(entry, actionGetter(entry), extraConfig);
 
   const recon: ReConfig = {
     routes: {},

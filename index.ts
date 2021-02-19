@@ -1,5 +1,6 @@
 // examples
 
+import express from "express";
 import http from "http";
 import combineRoutes from "./combineRoutes";
 import createServer from "./createServer";
@@ -55,11 +56,11 @@ const resources = combineRoutes("/resources", {
 });
 
 const listener = httpListener({
-  // @ts-ignore
   routes: resources,
   actions: {
-    logger: () => {
+    logger: (_, __, next) => {
       console.log("top-level logger");
+      next();
     },
   },
 });
@@ -70,6 +71,16 @@ const server = () => {
     port: 8080,
   });
 };
+
+// const app = express();
+
+// app.get("/user/", () => {
+//   console.log("here here");
+// });
+
+// app.listen(8080, () => {
+//   console.log("running");
+// });
 
 (async () => {
   await server();
