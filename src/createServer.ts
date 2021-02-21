@@ -1,11 +1,11 @@
 import express, { Express, NextFunction, Request, Response } from "express";
 import httpListener from "./httpListener";
-import { Block } from "./Router";
-import { Action } from "./types";
+import { SwaggerSpec } from "./types/meta";
+import { Action, Block } from "./types/resolved-definition";
 
 const registerAction = (app: Express, actions: Action[]) => {
   actions.forEach((fn) => {
-    app.use((req, res, next) => fn(req, res, next));
+    app.use((req, res, next) => fn(req, res, next, {} as any));
   });
 };
 
@@ -22,9 +22,9 @@ const executeEffect = ({
 
   try {
     const _res = await service?.src(req);
-    data = service?.onDone?.(req, { data: _res });
-  } catch (error) {
-    error = service?.onError?.(req, { data: error });
+    data = service?.onDone?.(req, { data: _res }) ?? _res;
+  } catch (err) {
+    error = service?.onError?.(req, { data: err }) ?? err;
   }
 
   effect(req, res, next, { data, error });
@@ -32,20 +32,38 @@ const executeEffect = ({
 
 export default async function createServer({
   port,
+  swagger,
   listener,
   afterInit,
   beforeInit,
 }: {
   port?: number;
+  swagger?: SwaggerSpec;
   afterInit?: (app: Express) => void;
   beforeInit?: (app: Express) => void;
   listener: ReturnType<typeof httpListener>;
 }) {
   const server = express();
 
+  let mergedMeta = {};
+
+  listener.forEach(({ meta }) => {
+    mergedMeta = {
+      ...mergedMeta,
+      ...meta,
+    };
+  });
+
   beforeInit?.(server);
 
-  console.log(listener);
+  if (swagger) {
+    const swaggerUI = require("swagger-ui-express");
+    server.use(
+      "/api-doc",
+      swaggerUI.serve,
+      swaggerUI.setup({ ...swagger, paths: mergedMeta }, { explorer: true })
+    );
+  }
 
   listener.forEach(({ exit, entry, routes }) => {
     registerAction(server, entry);
@@ -54,10 +72,6 @@ export default async function createServer({
       const { on } = routes[path];
 
       const route = server.route(path);
-
-      server.get(path, () => {
-        console.log("not middleware");
-      });
 
       for (const method in on) {
         const { exit, entry, effect, service } = on[method];
@@ -108,47 +122,9 @@ export default async function createServer({
 
   afterInit?.(server);
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     server.listen(port, () => {
       resolve(null);
     });
   });
-
-  // const server = http.createServer(async (request, response) => {
-  //   const { url = "", method = "" } = request;
-  //   const resolved = listener.resolve(url, method);
-  //   if (resolved) {
-  //     let data: unknown;
-  //     let error: unknown;
-  //     const query = parse(url, true).query;
-  //     const [params, { exit, entry, effect, service }] = resolved;
-  //     const req: Request = Object.assign({ query, params }, request);
-  //     await Promise.all(
-  //       entry.map((fn) => {
-  //         return fn(req, response);
-  //       })
-  //     );
-  //     try {
-  //       const res = service?.src(req);
-  //       data = service?.onDone?.(req, { data: res });
-  //     } catch (error) {
-  //       error = service?.onError?.(req, { data: error });
-  //     }
-  //     effect(req, response, { data, error });
-  //     await Promise.all(
-  //       exit.map((fn) => {
-  //         return fn(req, response);
-  //       })
-  //     );
-  //   } else {
-  //     console.log(`cannot ${method} ${url}`);
-  //     response.write(`cannot ${method} ${url}`);
-  //     response.end();
-  //   }
-  // });
-  // return new Promise((resolve, reject) => {
-  //   server.listen(port, () => {
-  //     resolve(null);
-  //   });
-  // });
 }

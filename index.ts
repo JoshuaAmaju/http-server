@@ -1,62 +1,102 @@
 // examples
 
-import express from "express";
 import http from "http";
-import combineRoutes from "./combineRoutes";
-import createServer from "./createServer";
-import httpListener from "./httpListener";
-import Router from "./Router";
+import express from "express";
+import { combineRoutes, createServer, httpListener, Router } from "./src";
 
-const users = Router({
+const rUsers = Router({
   routes: {
     "/": {
       on: {
         GET: {
-          effect: (_, res) => {
-            console.log("here");
-
-            res.json({ data: "Effect works" });
+          entry: "logger",
+          service: "getAllUsers",
+          effect: ({ body }, res, __, { data }) => {
+            res.json({ data, message: "Users: Effect works" });
+          },
+          meta: {
+            tags: ["user"],
+            description: "Returns list of users",
+            requestBody: {
+              description: "user data",
+              content: {
+                ert: {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                      },
+                    },
+                  },
+                  examples: {
+                    Jane: {
+                      value: {
+                        id: "124",
+                        name: "Jane Doe",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            responses: {
+              200: {
+                description: "A list of users",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                          description: "name of user",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     },
     "/:id": {
       on: {
+        GET: {
+          service: "getUser",
+          effect: (_, res, __, { data }) => {
+            res.json(data);
+          },
+          meta: {
+            tags: ["user"],
+          },
+        },
         POST: {
-          effect: () => {},
+          service: "createUser",
+          effect: (_, res) => {
+            res.json({ data: "User created" });
+          },
         },
       },
     },
   },
+  services: {
+    getAllUsers: () => Promise.resolve(5555),
+    getUser: ({ params: { id } }) => Promise.resolve({ id, name: "Jane Doe" }),
+    createUser: ({ params: { id } }) => {
+      return Promise.resolve({ id, name: "Jane Doe" });
+    },
+  },
 });
 
-// const posts = Route({
-//   routes: {
-//     "/": {
-//       on: {
-//         GET: {
-//           action: () => {},
-//         },
-//       },
-//     },
-//     "/{title}": {
-//       on: {
-//         POST: {
-//           action: () => {},
-//         },
-//       },
-//     },
-//   },
+// const user$$ = combineRoutes("/users", {
+//   routes: [rUsers],
 // });
 
-const resources = combineRoutes("/resources", {
-  exit: ["logger"],
-  entry: ["logger"],
-  routes: [users],
-});
-
 const listener = httpListener({
-  routes: resources,
+  routes: [rUsers],
   actions: {
     logger: (_, __, next) => {
       console.log("top-level logger");
@@ -69,34 +109,66 @@ const server = () => {
   return createServer({
     listener,
     port: 8080,
+    swagger: {
+      openapi: "3.0.0",
+      tags: [
+        {
+          name: "user",
+          description: "user object",
+        },
+      ],
+      info: {
+        version: "0.0.1",
+        description: "Testing swagger",
+      },
+    },
+    beforeInit(app) {
+      app.use(express.static("./public"));
+    },
   });
 };
 
 // const app = express();
 
-// app.get("/user/", () => {
-//   console.log("here here");
+// app.use(express.static("./public"));
+
+// app.get("/:id", () => {
+//   console.log("here server");
 // });
 
 // app.listen(8080, () => {
 //   console.log("running");
 // });
 
-(async () => {
+const main = async () => {
   await server();
 
   console.log("Server running @ http://localhost:8080");
 
-  const options = {
-    port: 8080,
-    host: "127.0.0.1",
-    path: "/",
-  };
+  //   const options = {
+  //     port: 8080,
+  //     host: "127.0.0.1",
+  //     path: "/",
+  //   };
 
-  const req = http.request(options);
-  req.end();
+  //   const req = http.request(options);
+  //   req.end();
 
-  req.on("information", (info) => {
-    console.log(`Got information prior to main response: ${info.statusCode}`);
-  });
-})();
+  //   req.on("response", (response) => {
+  //     console.log("Receiving response");
+
+  //     response.on("data", (data) => {
+  //       console.log(`Got data ${data}`);
+  //     });
+
+  //     response.on("end", () => {
+  //       console.log("Response ended");
+  //     });
+  //   });
+
+  //   req.on("information", (info) => {
+  //     console.log(`Got information prior to main response: ${info.statusCode}`);
+  //   });
+};
+
+main();
